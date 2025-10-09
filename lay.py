@@ -28,8 +28,8 @@ async def on_ready():
 
     # Statut du bot
     await bot.change_presence(
-        activity=discord.Activity(type=discord.ActivityType.watching, name="le serveur 👀"),
-        status=discord.Status.online
+        activity=discord.Game(name="HK le meilleur 🔥"),
+        status=discord.Status.dnd
     )
 
 # Message de bienvenue avec ID
@@ -599,6 +599,7 @@ async def on_command_error(ctx, error):
 if __name__ == "__main__":
     keep_alive()  # Démarre le serveur web
     bot.run(os.environ['BOT_TOKEN'])
+
 
 
 
