@@ -209,7 +209,7 @@ try:
         sent_count = 0
         failed_count = 0
         
-        # Message personnalisé (retire la pub agressive si tu veux)
+        # Message personnalisé
         dm_embed = discord.Embed(
             title="📢 Message du serveur",
             description=message,
