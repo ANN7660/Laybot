@@ -1,3 +1,6 @@
+Voici ton code avec l’analyse des rôles ajoutée :
+
+```python
 import discord
 from discord.ext import commands
 import asyncio
@@ -32,6 +35,43 @@ async def on_ready():
         activity=discord.Game(name="HK le meilleur 🔥"),
         status=discord.Status.dnd
     )
+    
+    # 🆕 AFFICHE LES RÔLES AU-DESSUS DU BOT
+    print("\n🎭 ANALYSE DES RÔLES PAR SERVEUR :")
+    print('=' * 50)
+    
+    for guild in bot.guilds:
+        print(f"\n📍 Serveur : {guild.name}")
+        
+        # Récupère le membre bot dans ce serveur
+        bot_member = guild.me
+        bot_role_position = bot_member.top_role.position
+        
+        print(f"🤖 Rôle du bot : {bot_member.top_role.name} (Position: {bot_role_position})")
+        
+        # Liste tous les rôles au-dessus du bot
+        roles_above = [role for role in guild.roles if role.position > bot_role_position]
+        
+        if roles_above:
+            print(f"⚠️  {len(roles_above)} rôle(s) AU-DESSUS du bot :")
+            for role in sorted(roles_above, key=lambda r: r.position, reverse=True):
+                members_count = len(role.members)
+                print(f"   🔺 {role.name} (Pos: {role.position}) - {members_count} membre(s)")
+        else:
+            print("✅ Aucun rôle au-dessus du bot (position optimale)")
+        
+        # Liste les rôles au même niveau ou en dessous
+        roles_below = [role for role in guild.roles if 0 < role.position <= bot_role_position and role != bot_member.top_role]
+        
+        if roles_below:
+            print(f"\n✅ {len(roles_below)} rôle(s) EN DESSOUS ou AU MÊME NIVEAU :")
+            for role in sorted(roles_below, key=lambda r: r.position, reverse=True):
+                members_count = len(role.members)
+                print(f"   🔹 {role.name} (Pos: {role.position}) - {members_count} membre(s)")
+        
+        print('-' * 50)
+    
+    print("\n✅ Analyse des rôles terminée !\n")
 
 # Message de bienvenue
 
@@ -321,6 +361,7 @@ async def dm_role_members(ctx, role: discord.Role, *, message):
 
 @bot.command(name='ban', aliases=['bannir'])
 @commands.has_permissions(ban_members=True)
+@commands.bot_has_permissions(ban_members=True)
 async def ban_member(ctx, member: discord.Member, *, raison="Aucune raison fournie"):
     """🔨 Ban un membre du serveur"""
     if member == ctx.author:
@@ -331,6 +372,10 @@ async def ban_member(ctx, member: discord.Member, *, raison="Aucune raison fourn
     
     if member == ctx.guild.owner:
         return await ctx.send("❌ Tu ne peux pas bannir le propriétaire du serveur!")
+    
+    # 🆕 Vérification du rôle du bot
+    if member.top_role >= ctx.guild.me.top_role:
+        return await ctx.send("❌ Je ne peux pas bannir quelqu'un avec un rôle supérieur au mien!")
     
     try:
         try:
@@ -367,6 +412,7 @@ async def ban_member(ctx, member: discord.Member, *, raison="Aucune raison fourn
 
 @bot.command(name='mute', aliases=['silence'])
 @commands.has_permissions(manage_roles=True)
+@commands.bot_has_permissions(moderate_members=True)
 async def mute_member(ctx, member: discord.Member, duration: int = 10, *, raison="Aucune raison fournie"):
     """🔇 Timeout un membre (durée en minutes)"""
     if member == ctx.author:
@@ -374,6 +420,10 @@ async def mute_member(ctx, member: discord.Member, duration: int = 10, *, raison
     
     if member.top_role >= ctx.author.top_role:
         return await ctx.send("❌ Tu ne peux pas mute quelqu'un avec un rôle supérieur!")
+    
+    # 🆕 Vérification du rôle du bot
+    if member.top_role >= ctx.guild.me.top_role:
+        return await ctx.send("❌ Je ne peux pas timeout quelqu'un avec un rôle supérieur au mien!")
     
     try:
         timeout_duration = timedelta(minutes=duration)
@@ -472,6 +522,65 @@ async def delete_all(ctx, limite: int = 100):
         await msg.clear_reactions()
         await msg.edit(content="⏰ Temps écoulé. Suppression annulée.", embed=None)
 
+# 🆕 COMMANDE POUR VÉRIFIER LES RÔLES
+
+@bot.command(name='checkroles', aliases=['check_roles', 'roles'])
+@commands.has_permissions(administrator=True)
+async def check_roles(ctx):
+    """🎭 Vérifie les rôles au-dessus du bot"""
+    
+    bot_member = ctx.guild.me
+    bot_role_position = bot_member.top_role.position
+    
+    # Rôles au-dessus
+    roles_above = [role for role in ctx.guild.roles if role.position > bot_role_position]
+    
+    embed = discord.Embed(
+        title="🎭 Analyse des rôles",
+        description=f"Position du bot : **{bot_member.top_role.name}** (Pos: {bot_role_position})",
+        color=discord.Color.blue(),
+        timestamp=datetime.now()
+    )
+    
+    # Affiche les rôles au-dessus
+    if roles_above:
+        roles_text = "\n".join([
+            f"🔺 **{role.name}** (Pos: {role.position}) - {len(role.members)} membre(s)"
+            for role in sorted(roles_above, key=lambda r: r.position, reverse=True)
+        ])
+        embed.add_field(
+            name=f"⚠️ {len(roles_above)} rôle(s) AU-DESSUS (le bot ne peut pas les gérer)",
+            value=roles_text[:1024],  # Limite Discord
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="✅ Rôles au-dessus",
+            value="Aucun (position optimale !)",
+            inline=False
+        )
+    
+    # Rôles en dessous
+    roles_below = [role for role in ctx.guild.roles if 0 < role.position < bot_role_position]
+    
+    if roles_below:
+        roles_text = "\n".join([
+            f"🔹 **{role.name}** (Pos: {role.position})"
+            for role in sorted(roles_below, key=lambda r: r.position, reverse=True)[:10]  # Limite à 10
+        ])
+        if len(roles_below) > 10:
+            roles_text += f"\n... et {len(roles_below) - 10} autre(s)"
+        
+        embed.add_field(
+            name=f"✅ {len(roles_below)} rôle(s) EN DESSOUS (le bot peut les gérer)",
+            value=roles_text,
+            inline=False
+        )
+    
+    embed.set_footer(text=f"Demandé par {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+    
+    await ctx.send(embed=embed)
+
 # ===== AIDE =====
 
 @bot.command(name='help_mod', aliases=['aide'])
@@ -489,6 +598,7 @@ async def help_moderation(ctx):
     embed.add_field(name="🔊 `!unmute @membre`", value="Retire le timeout", inline=False)
     embed.add_field(name="🗑️ `!delall [nombre]`", value="Supprime des messages", inline=False)
     embed.add_field(name="🏓 `!ping`", value="Teste la latence", inline=False)
+    embed.add_field(name="🎭 `!checkroles`", value="Vérifie les rôles du bot", inline=False)
     
     embed.add_field(name="\n⚙️ Configuration", value="\u200b", inline=False)
     embed.add_field(name="🏠 `!set_welcome #salon`", value="Config bienvenue", inline=False)
@@ -539,5 +649,12 @@ async def on_command_error(ctx, error):
 # Lancement du bot
 
 if __name__ == "__main__":
-    keep_alive()
-    bot.run(os.environ['BOT_TOKEN'])
+    try:
+        # Vérification du token
+        token = os.environ.get('BOT_TOKEN')
+        
+        if not token:
+            print("❌ ERREUR CRITIQUE : La variable BOT_TOKEN n'est pas définie !")
+            print("📝 Sur Replit : Va dans Secrets (🔒) et ajoute BOT_TOKEN")
+            exit(1)
+```
