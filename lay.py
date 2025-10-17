@@ -1,11 +1,28 @@
 import discord
 from discord.ext import commands
 import os
+from threading import Thread
+from flask import Flask
 
 # Configuration des intents
 intents = discord.Intents.all()
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Serveur Flask pour Render
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot Discord en ligne ! 🟢"
+
+@app.route('/health')
+def health():
+    return {"status": "ok", "bot": str(bot.user) if bot.user else "Non connecté"}
+
+def run_flask():
+    port = int(os.environ.get('PORT', 3000))
+    app.run(host='0.0.0.0', port=port)
 
 @bot.event
 async def on_ready():
@@ -149,6 +166,14 @@ if __name__ == "__main__":
         exit(1)
     
     print(f'Token trouve: {TOKEN[:20]}...')
+    print('\nDemarrage du serveur Flask...')
+    
+    # Démarrer Flask dans un thread séparé
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    print('Serveur web demarre !')
     print('\nConnexion a Discord...\n')
     
     try:
